@@ -183,14 +183,15 @@ function process() {
       const rowStart = y * imageData.width;
 
       for (let x = 0; x < imageData.width; x++) {
-        const index = (x + rowStart) * 4 + 3;
+        const index = (x + rowStart) * 4 + 3; // rgba
         if (imageData[index] < 125) {
           // check for transparent pixels from the source image
           paletteImage[x + rowStart] = -1;
         }
 
-        if (paletteImage[x + rowStart] === null) {
+        if (paletteImage[x + rowStart] === null || isNaN(paletteImage[x + rowStart])) {
           paletteImage[x + rowStart] = -1;
+          console.log("fixing NaN")
         }
       }
     }
@@ -327,10 +328,6 @@ function getPixels(px, py) {
       const onPageIndex = getPageIndex(px, py, x, y);
       const paletteIndex = paletteImage[onPageIndex] + 1;
       pixels.push(paletteIndex);
-
-      if(isNaN(paletteIndex)) {
-        console.log("NaN at " + onPageIndex)
-      }
     }
   }
 
