@@ -72,6 +72,8 @@ function process() {
   pageW = 1;
   pageH = 1;
 
+  let transparentPixels = []; // list of coordinates of transparent pixels
+
   if (specPages.checked) {
     pageW = pagesX.value;
     pageH = pagesY.value;
@@ -91,6 +93,24 @@ function process() {
   canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
   // draw the image
   canvasCtx.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  // Remove transparency
+  let imageData = canvasCtx.getImageData(0, 0, canvas.width, canvas.height);
+
+  for (let y = 0; y < imageData.height; y++) {
+    const rowStart = y * imageData.width;
+
+    for (let x = 0; x < imageData.width; x++) {
+      const index = (x + rowStart) * 4 + 3; // rgba
+      if (imageData.data[index] < 125) {
+        // check for transparent pixels from the source image
+        transparentPixels.push([x,y]);
+        imageData.data[index] = 255;
+      }
+    }
+  }
+  canvasCtx.putImageData(imageData, 0, 0);
+  
   // generate the palette
   quantizer.sample(canvas);
 
@@ -177,24 +197,18 @@ function process() {
 
   if (transparency.checked) {
     // Transfer transparency
-    const imageData = canvasCtx.getImageData(0, 0, canvas.width, canvas.height);
-
-    for (let y = 0; y < imageData.height; y++) {
+    imageData = canvasCtx.getImageData(0, 0, canvas.width, canvas.height);
+    for (coords of transparentPixels) {
+      let x = coords[0];
+      let y = coords[1];
       const rowStart = y * imageData.width;
-
-      for (let x = 0; x < imageData.width; x++) {
-        const index = (x + rowStart) * 4 + 3; // rgba
-        if (imageData[index] < 125) {
-          // check for transparent pixels from the source image
-          paletteImage[x + rowStart] = -1;
-        }
-
-        if (paletteImage[x + rowStart] === null || isNaN(paletteImage[x + rowStart])) {
-          paletteImage[x + rowStart] = -1;
-          console.log("fixing NaN")
-        }
-      }
+      paletteImage[x + rowStart] = -1;
+      // copy transparency back to preview
+      const index = (x + rowStart) * 4 + 3; // rgba
+      imageData.data[index] = 0;
     }
+    canvasCtx.clearRect(0,0,canvas.width,canvas.height);
+    canvasCtx.putImageData(imageData, 0, 0);
   }
 
   processedImageOutput.src = canvas.toDataURL("image/png"); // show the preview
@@ -231,8 +245,6 @@ function save() {
       });
     }
   }
-
-  console.log(pages);
 
   switch (outputFormat.value) {
     case "2dj":
@@ -330,8 +342,6 @@ function getPixels(px, py) {
       pixels.push(paletteIndex);
     }
   }
-
-  console.log(pixels)
 
   return pixels;
 }
